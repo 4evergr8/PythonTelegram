@@ -252,6 +252,7 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(
                 json.dumps({
                     "method": "answerCallbackQuery",
+                    "callback_query_id":  callback_query["id"],
                     "chat_id": 0,
                     "text": "无处理内容"
                 }).encode()
