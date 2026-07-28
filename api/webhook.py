@@ -31,10 +31,7 @@ async def search_posts(
         callback_query_id=None
 ):
 
-    if callback_query_id:
-        bot.answer_callback_query(
-            callback_query_id
-        )
+
 
 
     try:
@@ -147,6 +144,10 @@ async def search_posts(
                     text="下一页",
                     callback_data=callback_data
                 )
+            )
+        if callback_query_id:
+            bot.answer_callback_query(
+                callback_query_id
             )
 
 
