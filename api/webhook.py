@@ -12,12 +12,10 @@ from telethon.tl.functions.channels import SearchPostsRequest
 
 from aaa import blocked_channels
 
-
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
-
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -30,10 +28,6 @@ async def search_posts(
         offset_id=0,
         callback_query_id=None
 ):
-
-
-
-
     try:
 
         client = TelegramClient(
@@ -44,11 +38,9 @@ async def search_posts(
 
         await client.connect()
 
-
         offset_peer = await client.get_input_entity(
             "telegram"
         )
-
 
         result = await client(
             SearchPostsRequest(
@@ -57,76 +49,59 @@ async def search_posts(
                 offset_rate=offset_rate,
                 offset_peer=offset_peer,
                 offset_id=offset_id,
-                limit=10
+                limit=20
             )
         )
-
 
         chat_map = {
             chat.id: chat
             for chat in result.chats
         }
 
-
         text_list = []
-
 
         for msg in result.messages:
 
             if not hasattr(msg.peer_id, "channel_id"):
                 continue
 
-
             channel_id = msg.peer_id.channel_id
-
 
             if channel_id in blocked_channels:
                 continue
 
-
             chat = chat_map.get(channel_id)
-
 
             if not chat:
                 continue
 
-
             username = getattr(chat, "username", None)
-
 
             if not username:
                 continue
 
-
             link = f"https://t.me/{username}/{msg.id}"
 
-
             content = msg.message or ""
-
 
             text_list.append(
                 f"频道ID:{channel_id}\n\n"
                 f"[{content}]({link})"
             )
 
-
         if text_list:
             text = "\n\n----------------\n\n".join(text_list)
         else:
             text = "没有符合条件的结果"
 
-
         keyboard = None
 
-
         if result.next_rate:
-
             keyword = (
                 "#" + hashtag
                 if hashtag
                 else query
             )
-
 
             callback_data = ",".join(
                 [
@@ -135,7 +110,6 @@ async def search_posts(
                     "0"
                 ]
             )
-
 
             keyboard = types.InlineKeyboardMarkup()
 
@@ -149,7 +123,6 @@ async def search_posts(
             bot.answer_callback_query(
                 callback_query_id
             )
-
 
         bot.send_message(
             chat_id,
@@ -167,9 +140,7 @@ async def search_posts(
         )
 
 
-
 def parse_search_text(text):
-
     text = text.replace(
         "\n",
         ""
@@ -177,22 +148,18 @@ def parse_search_text(text):
 
     text = text.strip()
 
-
     if text.startswith("#"):
-
         return {
             "keyword": text,
             "hashtag": text[1:],
             "query": None
         }
 
-
     return {
         "keyword": text,
         "hashtag": None,
         "query": text
     }
-
 
 
 class handler(BaseHTTPRequestHandler):
@@ -206,19 +173,13 @@ class handler(BaseHTTPRequestHandler):
             )
         )
 
-
         body = self.rfile.read(length)
-
 
         update = json.loads(body)
 
-
-
         message = update.get("message")
 
-
         if message:
-
             chat_id = message["chat"]["id"]
 
             text = message.get(
@@ -226,11 +187,9 @@ class handler(BaseHTTPRequestHandler):
                 ""
             )
 
-
             search = parse_search_text(
                 text
             )
-
 
             asyncio.run(
                 search_posts(
@@ -240,28 +199,20 @@ class handler(BaseHTTPRequestHandler):
                 )
             )
 
-
-
         callback_query = update.get(
             "callback_query"
         )
 
-
         if callback_query:
-
             chat_id = callback_query["message"]["chat"]["id"]
-
 
             data = callback_query["data"]
 
-
             keyword, offset_rate, offset_id = data.split(",")
-
 
             search = parse_search_text(
                 keyword
             )
-
 
             asyncio.run(
                 search_posts(
@@ -273,8 +224,6 @@ class handler(BaseHTTPRequestHandler):
                     callback_query_id=callback_query["id"]
                 )
             )
-
-
 
         self.send_response(200)
 
