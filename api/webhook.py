@@ -1,41 +1,51 @@
-import asyncio
-import json
 import os
-from http.server import BaseHTTPRequestHandler
+import json
+import asyncio
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.tl.functions.channels import SearchPostsRequest
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application,
+    ContextTypes,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters,
+)
 
 from aaa import blocked_channels
 
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
 
 
+tg_client = TelegramClient(
+    StringSession(TG_SESSION),
+    API_ID,
+    API_HASH
+)
+
 
 async def search_posts(
-        chat_id,
-        hashtag=None,
-        query=None,
-        offset_rate=0,
-        offset_id=0
+    chat_id,
+    context,
+    hashtag=None,
+    query=None,
+    offset_rate=0,
+    offset_id=0
 ):
 
-    client = TelegramClient(
-        StringSession(TG_SESSION),
-        API_ID,
-        API_HASH
-    )
+    await tg_client.connect()
 
-    await client.connect()
-
-    offset_peer = await client.get_input_entity("telegram")
+    offset_peer = await tg_client.get_input_entity("telegram")
 
 
-    result = await client(
+    result = await tg_client(
         SearchPostsRequest(
             hashtag=hashtag,
             query=query,
@@ -83,9 +93,7 @@ async def search_posts(
 
         link = f"https://t.me/{username}/{msg.id}"
 
-
         content = msg.message or ""
-
 
         text_list.append(
             f"频道ID:{channel_id}\n\n"
@@ -99,7 +107,7 @@ async def search_posts(
         text = "没有符合条件的结果"
 
 
-    callback_data = None
+    keyboard = None
 
 
     if result.next_rate:
@@ -113,30 +121,24 @@ async def search_posts(
         ])
 
 
-    reply_markup = None
-
-
-    if callback_data:
-
-        reply_markup = {
-            "inline_keyboard": [
+        keyboard = InlineKeyboardMarkup(
+            [
                 [
-                    {
-                        "text": "下一页",
-                        "callback_data": callback_data
-                    }
+                    InlineKeyboardButton(
+                        "下一页",
+                        callback_data=callback_data
+                    )
                 ]
             ]
-        }
+        )
 
 
-    return {
-        "method": "sendMessage",
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "Markdown",
-        "reply_markup": reply_markup
-    }
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
 
 
 
@@ -163,97 +165,78 @@ def parse_search_text(text):
 
 
 
-class handler(BaseHTTPRequestHandler):
+async def message_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
-    def do_POST(self):
+    chat_id = update.message.chat.id
 
-        length = int(
-            self.headers.get("Content-Length", 0)
-        )
-
-
-        body = self.rfile.read(length)
-
-        update = json.loads(body)
+    text = update.message.text or ""
 
 
-        response = None
+    search = parse_search_text(text)
 
 
-        message = update.get("message")
-
-
-        if message:
-
-            chat_id = message["chat"]["id"]
-
-            text = message.get("text", "")
-
-
-            search = parse_search_text(text)
-
-
-            response = asyncio.run(
-                search_posts(
-                    chat_id,
-                    hashtag=search["hashtag"],
-                    query=search["query"]
-                )
-            )
+    await search_posts(
+        chat_id,
+        context,
+        hashtag=search["hashtag"],
+        query=search["query"]
+    )
 
 
 
-        callback_query = update.get("callback_query")
+async def callback_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
 
 
-        if callback_query:
-
-            chat_id = callback_query["message"]["chat"]["id"]
-
-
-            data = callback_query["data"]
+    await context.bot.answer_callback_query(
+        callback_query_id=query.id
+    )
 
 
-            keyword, offset_rate, offset_id = data.split(",")
+    chat_id = query.message.chat.id
 
 
-            search = parse_search_text(keyword)
+    keyword, offset_rate, offset_id = query.data.split(",")
 
 
-            response = asyncio.run(
-                search_posts(
-                    chat_id,
-                    hashtag=search["hashtag"],
-                    query=search["query"],
-                    offset_rate=int(offset_rate),
-                    offset_id=int(offset_id)
-                )
-            )
+    search = parse_search_text(keyword)
 
 
-        self.send_response(200)
+    await search_posts(
+        chat_id,
+        context,
+        hashtag=search["hashtag"],
+        query=search["query"],
+        offset_rate=int(offset_rate),
+        offset_id=int(offset_id)
+    )
 
-        self.send_header(
-            "Content-Type",
-            "application/json"
-        )
-
-        self.end_headers()
 
 
-        if response:
+application = (
+    Application.builder()
+    .token(BOT_TOKEN)
+    .build()
+)
 
-            self.wfile.write(
-                json.dumps(response).encode()
-            )
 
-        else:
+application.add_handler(
+    MessageHandler(
+        filters.TEXT,
+        message_handler
+    )
+)
 
-            self.wfile.write(
-                json.dumps({
-                    "method": "answerCallbackQuery",
-                    "callback_query_id":  callback_query["id"],
-                    "chat_id": 0,
-                    "text": "无处理内容"
-                }).encode()
-            )
+
+application.add_handler(
+    CallbackQueryHandler(
+        callback_handler
+    )
+)
