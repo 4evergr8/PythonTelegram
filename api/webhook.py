@@ -101,8 +101,6 @@ async def search_posts(
                 # 黑名单过滤 username
                 if username in blocked_channels:
                     continue
-
-
                 link = f"https://t.me/{username}/{msg.id}"
 
 
@@ -113,7 +111,12 @@ async def search_posts(
                     ""
                 ).replace(" ","")
 
-                pattern = r"[\U0001F300-\U0001FAFF]{4,}|规则2|规则3"
+                pattern = (
+                    r"(?:"
+                    r"[\U0001F000-\U0001FAFF]"
+                    r"|[\u2600-\u27BF]"
+                    r"){4,}"
+                )
 
                 if re.search(pattern, content):
                     continue
