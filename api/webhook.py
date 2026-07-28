@@ -111,11 +111,8 @@ async def search_posts(
                     ""
                 ).replace(" ","")
 
-                pattern = (
-                    r"(?:"
-                    r"[\U0001F000-\U0001FAFF]"
-                    r"|[\u2600-\u27BF]"
-                    r"){4,}"
+                pattern = re.compile(
+                    r"[^\w\u4e00-\u9fff]{4,}"
                 )
 
                 if re.search(pattern, content):
