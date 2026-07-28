@@ -49,7 +49,7 @@ async def search_posts(
                 offset_rate=offset_rate,
                 offset_peer=offset_peer,
                 offset_id=offset_id,
-                limit=20
+                limit=50
             )
         )
 
@@ -85,7 +85,6 @@ async def search_posts(
             content = msg.message or ""
 
             text_list.append(
-                f"频道ID:{channel_id}\n\n"
                 f"[{content}]({link})"
             )
 
