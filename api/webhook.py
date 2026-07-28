@@ -3,6 +3,7 @@ import os
 import urllib.request
 from http.server import BaseHTTPRequestHandler
 from telethon import TelegramClient
+from telethon.sessions import StringSession
 from telethon.tl.functions.channels import SearchPostsRequest
 from aaa import blocked_channels
 
@@ -11,7 +12,7 @@ API_HASH = os.environ["API_HASH"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
 
-client = TelegramClient(session=TG_SESSION, api_id=API_ID, api_hash=API_HASH)
+client = TelegramClient( StringSession(TG_SESSION), api_id=API_ID, api_hash=API_HASH)
 async def search_posts(
         chat_id,
         hashtag=None,
