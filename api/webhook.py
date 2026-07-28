@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 from http.server import BaseHTTPRequestHandler
 
 import telebot
@@ -111,6 +112,10 @@ async def search_posts(
                     "\n",
                     ""
                 )
+                pattern = r"[\U0001F300-\U0001FAFF]{4,}|规则2|规则3"
+
+                if re.search(pattern, content):
+                    continue
 
 
                 content = content[:20]
