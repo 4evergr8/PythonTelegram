@@ -111,7 +111,8 @@ async def search_posts(
                 ).replace(
                     "\n",
                     ""
-                )
+                ).replace(" ","")
+
                 pattern = r"[\U0001F300-\U0001FAFF]{4,}|规则2|规则3"
 
                 if re.search(pattern, content):
