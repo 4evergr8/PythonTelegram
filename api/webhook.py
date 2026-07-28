@@ -1,5 +1,4 @@
 import asyncio
-import html
 import json
 import os
 import urllib.request
@@ -38,7 +37,7 @@ async def search_posts(
                 offset_rate=offset_rate,
                 offset_peer=offset_peer,
                 offset_id=offset_id,
-                limit=100
+                limit=5
             )
         )
 
