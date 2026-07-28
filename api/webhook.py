@@ -42,7 +42,7 @@ class handler(BaseHTTPRequestHandler):
 
             send_message(
                 chat_id,
-                f"收到：{text}"
+                f"收到：{text}{chat_id}"
             )
 
         self.send_response(200)
