@@ -1,25 +1,53 @@
-import requests
+import os
+import json
+import urllib.request
+from http.server import BaseHTTPRequestHandler
 
 
-BOT_TOKEN = "8241984939:AAF8JilTNlf7ucl5s8JB2z3EzBiRYqFFx48"
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 
 
-def handler(request):
+def send_message(chat_id, text):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-    data = request.json()
+    data = json.dumps({
+        "chat_id": chat_id,
+        "text": text
+    }).encode()
 
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            "Content-Type": "application/json"
+        }
+    )
 
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={
-                "chat_id": chat_id,
-                "text": "滚蛋"
-            }
+    urllib.request.urlopen(req)
+
+
+class handler(BaseHTTPRequestHandler):
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+
+        update = json.loads(body)
+
+        message = update.get("message")
+
+        if message:
+            chat_id = message["chat"]["id"]
+            text = message.get("text", "")
+
+            send_message(
+                chat_id,
+                f"收到：{text}"
+            )
+
+        self.send_response(200)
+        self.end_headers()
+
+        self.wfile.write(
+            b"OK"
         )
-
-    return {
-        "statusCode": 200,
-        "body": "ok"
-    }
