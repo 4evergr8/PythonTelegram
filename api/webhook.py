@@ -12,11 +12,7 @@ API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
-client = TelegramClient(
-    StringSession(TG_SESSION),
-    API_ID,
-    API_HASH
-)
+
 
 async def search_posts(
         chat_id,
@@ -26,6 +22,11 @@ async def search_posts(
         offset_id=0
 ):
     try:
+        client = TelegramClient(
+            StringSession(TG_SESSION),
+            API_ID,
+            API_HASH
+        )
         await client.connect()
         offset_peer = await client.get_input_entity("telegram")
 
@@ -86,7 +87,7 @@ async def search_posts(
         callback_data = None
 
         if next_rate:
-            keyword = hashtag if hashtag else query
+            keyword = "#" + hashtag if hashtag else query
 
             callback_data = ",".join([
                 keyword,
@@ -115,6 +116,7 @@ async def search_posts(
             }
 
         data = json.dumps(body).encode()
+        raise "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
         req = urllib.request.Request(
             url,
