@@ -107,7 +107,7 @@ async def search_posts(
 
 
                 content = (
-                    msg.message or ""
+                    msg.message
                 ).replace(
                     "\n",
                     ""
