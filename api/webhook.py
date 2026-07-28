@@ -42,76 +42,136 @@ async def search_posts(
             "telegram"
         )
 
-        result = await client(
-            SearchPostsRequest(
-                hashtag=hashtag,
-                query=query,
-                offset_rate=offset_rate,
-                offset_peer=offset_peer,
-                offset_id=offset_id,
-                limit=100
-            )
-        )
 
-        chat_map = {
-            chat.id: chat
-            for chat in result.chats
-        }
+        while True:
 
-        text_list = []
-
-        for msg in result.messages:
-
-            if not hasattr(msg.peer_id, "channel_id"):
-                continue
-
-            channel_id = msg.peer_id.channel_id
-
-            if channel_id in blocked_channels:
-                continue
-
-            chat = chat_map.get(channel_id)
-
-            if not chat:
-                continue
-
-            username = getattr(chat, "username", None)
-
-            if not username:
-                continue
-
-            link = f"https://t.me/{username}/{msg.id}"
-
-            content = (msg.message or "").replace("\n", "")
-            content = content[:20]
-
-            text_list.append(
-                f"[{content}]({link})"
+            result = await client(
+                SearchPostsRequest(
+                    hashtag=hashtag,
+                    query=query,
+                    offset_rate=offset_rate,
+                    offset_peer=offset_peer,
+                    offset_id=offset_id,
+                    limit=100
+                )
             )
 
-        if text_list:
-            text = "\n".join(text_list)
-        else:
-            text = "没有符合条件的结果"
+
+            if not result.messages:
+                text = "没有符合条件的结果"
+                break
+
+
+            chat_map = {
+                chat.id: chat
+                for chat in result.chats
+            }
+
+
+            text_list = []
+
+
+            for msg in result.messages:
+
+                if not hasattr(msg.peer_id, "channel_id"):
+                    continue
+
+
+                channel_id = msg.peer_id.channel_id
+
+
+                chat = chat_map.get(channel_id)
+
+                if not chat:
+                    continue
+
+
+                username = getattr(
+                    chat,
+                    "username",
+                    None
+                )
+
+
+                if not username:
+                    continue
+
+
+                # 黑名单过滤 username
+                if username in blocked_channels:
+                    continue
+
+
+                link = f"https://t.me/{username}/{msg.id}"
+
+
+                content = (
+                    msg.message or ""
+                ).replace(
+                    "\n",
+                    ""
+                )
+
+
+                content = content[:20]
+
+
+                text_list.append(
+                    f"[{content}]({link})"
+                )
+
+
+
+            # 找到了有效结果
+            if text_list:
+
+                text = "\n".join(text_list)
+
+                next_rate = result.next_rate
+
+                break
+
+
+
+            # 本页全部被过滤
+            if not result.next_rate:
+
+                text = "没有符合条件的结果"
+
+                next_rate = None
+
+                break
+
+
+            # 翻下一页继续搜索
+
+            offset_rate = result.next_rate
+
+
 
         keyboard = None
 
-        if result.next_rate:
+
+        if next_rate:
+
             keyword = (
                 "#" + hashtag
                 if hashtag
                 else query
             )
 
+
             callback_data = ",".join(
                 [
                     keyword,
-                    str(result.next_rate),
+                    str(next_rate),
                     "0"
                 ]
             )
 
+
             keyboard = types.InlineKeyboardMarkup()
+
 
             keyboard.add(
                 types.InlineKeyboardButton(
@@ -119,10 +179,15 @@ async def search_posts(
                     callback_data=callback_data
                 )
             )
+
+
+
         if callback_query_id:
+
             bot.answer_callback_query(
                 callback_query_id
             )
+
 
         bot.send_message(
             chat_id,
@@ -139,7 +204,6 @@ async def search_posts(
             chat_id,
             f"搜索出错:\n\n{str(e)}"
         )
-
 
 def parse_search_text(text):
     text = text.replace(
