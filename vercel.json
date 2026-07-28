@@ -1,8 +1,7 @@
 {
-  "routes": [
-    {
-      "src": "/api/webhook",
-      "dest": "api/webhook.py"
+  "functions": {
+    "api/webhook.py": {
+      "runtime": "python3.12"
     }
-  ]
+  }
 }
