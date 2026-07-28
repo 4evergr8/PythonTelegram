@@ -1,9 +1,10 @@
-import os
-import json
 import asyncio
+import json
+import os
 from http.server import BaseHTTPRequestHandler
 
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+import telebot
+from telebot import types
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -18,9 +19,7 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
 
 
-bot = Bot(
-    BOT_TOKEN
-)
+bot = telebot.TeleBot(BOT_TOKEN)
 
 
 async def search_posts(
@@ -28,8 +27,15 @@ async def search_posts(
         hashtag=None,
         query=None,
         offset_rate=0,
-        offset_id=0
+        offset_id=0,
+        callback_query_id=None
 ):
+
+    if callback_query_id:
+        bot.answer_callback_query(
+            callback_query_id
+        )
+
 
     try:
 
@@ -70,7 +76,6 @@ async def search_posts(
 
         for msg in result.messages:
 
-
             if not hasattr(msg.peer_id, "channel_id"):
                 continue
 
@@ -84,24 +89,19 @@ async def search_posts(
 
             chat = chat_map.get(channel_id)
 
+
             if not chat:
                 continue
 
 
-            username = getattr(
-                chat,
-                "username",
-                None
-            )
+            username = getattr(chat, "username", None)
 
 
             if not username:
                 continue
 
 
-            link = (
-                f"https://t.me/{username}/{msg.id}"
-            )
+            link = f"https://t.me/{username}/{msg.id}"
 
 
             content = msg.message or ""
@@ -114,16 +114,9 @@ async def search_posts(
 
 
         if text_list:
-
-            message_text = (
-                "\n\n----------------\n\n"
-                .join(text_list)
-            )
-
+            text = "\n\n----------------\n\n".join(text_list)
         else:
-
-            message_text = "没有符合条件的结果"
-
+            text = "没有符合条件的结果"
 
 
         keyboard = None
@@ -147,34 +140,29 @@ async def search_posts(
             )
 
 
-            keyboard = InlineKeyboardMarkup(
-                [
-                    [
-                        InlineKeyboardButton(
-                            "下一页",
-                            callback_data=callback_data
-                        )
-                    ]
-                ]
+            keyboard = types.InlineKeyboardMarkup()
+
+            keyboard.add(
+                types.InlineKeyboardButton(
+                    text="下一页",
+                    callback_data=callback_data
+                )
             )
 
 
-        await bot.send_message(
-            chat_id=chat_id,
-            text=message_text,
+        bot.send_message(
+            chat_id,
+            text,
             parse_mode="Markdown",
             reply_markup=keyboard
         )
 
 
-        await client.disconnect()
-
-
     except Exception as e:
 
-        await bot.send_message(
-            chat_id=chat_id,
-            text=f"搜索出错:\n{str(e)}"
+        bot.send_message(
+            chat_id,
+            f"搜索出错:\n\n{str(e)}"
         )
 
 
@@ -206,77 +194,6 @@ def parse_search_text(text):
 
 
 
-async def process_update(update):
-
-
-    message = update.get(
-        "message"
-    )
-
-
-    if message:
-
-        chat_id = message["chat"]["id"]
-
-        text = message.get(
-            "text",
-            ""
-        )
-
-
-        search = parse_search_text(
-            text
-        )
-
-
-        await search_posts(
-            chat_id,
-            hashtag=search["hashtag"],
-            query=search["query"]
-        )
-
-
-
-    callback_query = update.get(
-        "callback_query"
-    )
-
-
-    if callback_query:
-
-
-        query_id = callback_query["id"]
-
-
-        await bot.answer_callback_query(
-            query_id
-        )
-
-
-        chat_id = callback_query["message"]["chat"]["id"]
-
-
-        data = callback_query["data"]
-
-
-        keyword, offset_rate, offset_id = data.split(",")
-
-
-        search = parse_search_text(
-            keyword
-        )
-
-
-        await search_posts(
-            chat_id,
-            hashtag=search["hashtag"],
-            query=search["query"],
-            offset_rate=int(offset_rate),
-            offset_id=int(offset_id)
-        )
-
-
-
 class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
@@ -289,24 +206,76 @@ class handler(BaseHTTPRequestHandler):
         )
 
 
-        body = self.rfile.read(
-            length
+        body = self.rfile.read(length)
+
+
+        update = json.loads(body)
+
+
+
+        message = update.get("message")
+
+
+        if message:
+
+            chat_id = message["chat"]["id"]
+
+            text = message.get(
+                "text",
+                ""
+            )
+
+
+            search = parse_search_text(
+                text
+            )
+
+
+            asyncio.run(
+                search_posts(
+                    chat_id,
+                    hashtag=search["hashtag"],
+                    query=search["query"]
+                )
+            )
+
+
+
+        callback_query = update.get(
+            "callback_query"
         )
 
 
-        update = json.loads(
-            body
-        )
+        if callback_query:
+
+            chat_id = callback_query["message"]["chat"]["id"]
 
 
-        asyncio.run(
-            process_update(update)
-        )
+            data = callback_query["data"]
 
 
-        self.send_response(
-            200
-        )
+            keyword, offset_rate, offset_id = data.split(",")
+
+
+            search = parse_search_text(
+                keyword
+            )
+
+
+            asyncio.run(
+                search_posts(
+                    chat_id,
+                    hashtag=search["hashtag"],
+                    query=search["query"],
+                    offset_rate=int(offset_rate),
+                    offset_id=int(offset_id),
+                    callback_query_id=callback_query["id"]
+                )
+            )
+
+
+
+        self.send_response(200)
 
         self.end_headers()
 
