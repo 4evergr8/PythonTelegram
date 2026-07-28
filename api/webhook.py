@@ -128,7 +128,8 @@ async def search_posts(
             chat_id,
             text,
             parse_mode="Markdown",
-            reply_markup=keyboard
+            reply_markup=keyboard,
+            disable_web_page_preview=True
         )
 
 
