@@ -49,7 +49,7 @@ async def search_posts(
                 offset_rate=offset_rate,
                 offset_peer=offset_peer,
                 offset_id=offset_id,
-                limit=40
+                limit=30
             )
         )
 
