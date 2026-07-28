@@ -72,6 +72,8 @@ async def search_posts(
 
             content = msg.message or ""
 
+            content = html.escape(content)
+
             text_list.append(
                 f"频道ID:{channel_id}\n\n"
                 f'<a href="{link}">{content}</a>'
@@ -116,7 +118,6 @@ async def search_posts(
             }
 
         data = json.dumps(body).encode()
-        raise "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
         req = urllib.request.Request(
             url,
