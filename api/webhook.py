@@ -1,17 +1,19 @@
 import asyncio
 import json
 import os
-import urllib.request
 from http.server import BaseHTTPRequestHandler
+
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.tl.functions.channels import SearchPostsRequest
+
 from aaa import blocked_channels
+
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
-BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
+
 
 
 async def search_posts(
@@ -21,158 +23,144 @@ async def search_posts(
         offset_rate=0,
         offset_id=0
 ):
-    try:
-        client = TelegramClient(
-            StringSession(TG_SESSION),
-            API_ID,
-            API_HASH
+
+    client = TelegramClient(
+        StringSession(TG_SESSION),
+        API_ID,
+        API_HASH
+    )
+
+    await client.connect()
+
+    offset_peer = await client.get_input_entity("telegram")
+
+
+    result = await client(
+        SearchPostsRequest(
+            hashtag=hashtag,
+            query=query,
+            offset_rate=offset_rate,
+            offset_peer=offset_peer,
+            offset_id=offset_id,
+            limit=10
         )
-        await client.connect()
-        offset_peer = await client.get_input_entity("telegram")
+    )
 
-        result = await client(
-            SearchPostsRequest(
-                hashtag=hashtag,
-                query=query,
-                offset_rate=offset_rate,
-                offset_peer=offset_peer,
-                offset_id=offset_id,
-                limit=10
-            )
+
+    chat_map = {
+        chat.id: chat
+        for chat in result.chats
+    }
+
+
+    text_list = []
+
+
+    for msg in result.messages:
+
+        if not hasattr(msg.peer_id, "channel_id"):
+            continue
+
+
+        channel_id = msg.peer_id.channel_id
+
+
+        if channel_id in blocked_channels:
+            continue
+
+
+        chat = chat_map.get(channel_id)
+
+        if not chat:
+            continue
+
+
+        username = getattr(chat, "username", None)
+
+        if not username:
+            continue
+
+
+        link = f"https://t.me/{username}/{msg.id}"
+
+
+        content = msg.message or ""
+
+
+        text_list.append(
+            f"频道ID:{channel_id}\n\n"
+            f"[{content}]({link})"
         )
 
-        chat_map = {
-            chat.id: chat
-            for chat in result.chats
-        }
 
-        text_list = []
+    if text_list:
+        text = "\n\n----------------\n\n".join(text_list)
+    else:
+        text = "没有符合条件的结果"
 
-        for msg in result.messages:
 
-            if not hasattr(msg.peer_id, "channel_id"):
-                continue
+    callback_data = None
 
-            channel_id = msg.peer_id.channel_id
 
-            if channel_id in blocked_channels:
-                continue
+    if result.next_rate:
 
-            chat = chat_map.get(channel_id)
+        keyword = "#" + hashtag if hashtag else query
 
-            if not chat:
-                continue
+        callback_data = ",".join([
+            keyword,
+            str(result.next_rate),
+            "0"
+        ])
 
-            username = getattr(chat, "username", None)
 
-            if not username:
-                continue
+    reply_markup = None
 
-            link = f"https://t.me/{username}/{msg.id}"
 
-            content = msg.message or ""
+    if callback_data:
 
-            text_list.append(
-                f"频道ID:{channel_id}\n\n"
-                f"[{content}]({link})"
-            )
-
-        if not text_list:
-            message_text = "没有符合条件的结果"
-        else:
-            message_text = "\n\n----------------\n\n".join(text_list)
-
-        next_rate = result.next_rate
-
-        callback_data = None
-
-        if next_rate:
-            keyword = "#" + hashtag if hashtag else query
-
-            callback_data = ",".join([
-                keyword,
-                str(next_rate),
-                str(0)
-            ])
-
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-        body = {
-            "chat_id": chat_id,
-            "text": message_text,
-            "parse_mode": "Markdown"
-        }
-
-        if callback_data:
-            body["reply_markup"] = {
-                "inline_keyboard": [
-                    [
-                        {
-                            "text": "下一页",
-                            "callback_data": callback_data
-                        }
-                    ]
+        reply_markup = {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": "下一页",
+                        "callback_data": callback_data
+                    }
                 ]
-            }
-
-        data = json.dumps(body).encode()
-
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={
-                "Content-Type": "application/json"
-            }
-        )
-
-        urllib.request.urlopen(req)
-
-        return {
-            "offset_rate": next_rate
+            ]
         }
 
-    except Exception as e:
-        error_text = f"搜索出错:\n\n{str(e)}"
 
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    return {
+        "method": "sendMessage",
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "Markdown",
+        "reply_markup": reply_markup
+    }
 
-        body = {
-            "chat_id": chat_id,
-            "text": error_text
-        }
 
-        data = json.dumps(body).encode()
-
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={
-                "Content-Type": "application/json"
-            }
-        )
-
-        urllib.request.urlopen(req)
-
-        return {
-            "error": str(e)
-        }
 
 def parse_search_text(text):
+
     text = text.replace("\n", "")
     text = text.strip()
 
+
     if text.startswith("#"):
+
         return {
             "keyword": text,
             "hashtag": text[1:],
             "query": None
         }
 
+
     return {
         "keyword": text,
         "hashtag": None,
         "query": text
     }
+
 
 
 class handler(BaseHTTPRequestHandler):
@@ -183,20 +171,29 @@ class handler(BaseHTTPRequestHandler):
             self.headers.get("Content-Length", 0)
         )
 
+
         body = self.rfile.read(length)
 
         update = json.loads(body)
 
+
+        response = None
+
+
         message = update.get("message")
 
+
         if message:
+
             chat_id = message["chat"]["id"]
 
             text = message.get("text", "")
 
+
             search = parse_search_text(text)
 
-            asyncio.run(
+
+            response = asyncio.run(
                 search_posts(
                     chat_id,
                     hashtag=search["hashtag"],
@@ -204,18 +201,26 @@ class handler(BaseHTTPRequestHandler):
                 )
             )
 
+
+
         callback_query = update.get("callback_query")
 
+
         if callback_query:
+
             chat_id = callback_query["message"]["chat"]["id"]
+
 
             data = callback_query["data"]
 
+
             keyword, offset_rate, offset_id = data.split(",")
+
 
             search = parse_search_text(keyword)
 
-            asyncio.run(
+
+            response = asyncio.run(
                 search_posts(
                     chat_id,
                     hashtag=search["hashtag"],
@@ -225,10 +230,29 @@ class handler(BaseHTTPRequestHandler):
                 )
             )
 
+
         self.send_response(200)
+
+        self.send_header(
+            "Content-Type",
+            "application/json"
+        )
 
         self.end_headers()
 
-        self.wfile.write(
-            b"OK"
-        )
+
+        if response:
+
+            self.wfile.write(
+                json.dumps(response).encode()
+            )
+
+        else:
+
+            self.wfile.write(
+                json.dumps({
+                    "method": "sendMessage",
+                    "chat_id": 0,
+                    "text": "无处理内容"
+                }).encode()
+            )
