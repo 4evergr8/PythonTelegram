@@ -73,7 +73,7 @@ async def search_posts(
 
             text_list.append(
                 f"频道ID:{channel_id}\n\n"
-                f"[{content}]({link})"
+                f'<a href="{link}">{content}</a>'
             )
 
         if not text_list:
@@ -99,7 +99,7 @@ async def search_posts(
         body = {
             "chat_id": chat_id,
             "text": message_text,
-        
+            "parse_mode": "HTML"
         }
 
         if callback_data:
