@@ -99,7 +99,7 @@ async def search_posts(
         body = {
             "chat_id": chat_id,
             "text": message_text,
-            "parse_mode": "Markdown"
+        
         }
 
         if callback_data:
