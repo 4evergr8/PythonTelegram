@@ -89,9 +89,7 @@ async def search_posts(
                 f"[{content}]({link})"
             )
 
-        if text_list:
-            text = "\n\n----------------\n\n".join(text_list)
-        else:
+        if  not text_list:
             text = "没有符合条件的结果"
 
         keyboard = None
