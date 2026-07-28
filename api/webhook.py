@@ -1,44 +1,104 @@
-import os
 import json
+import os
 import urllib.request
 from http.server import BaseHTTPRequestHandler
+from telethon import TelegramClient
+from telethon.tl.functions.channels import SearchPostsRequest
+from aaa import blocked_channels
 
-
+API_ID = os.environ["API_ID"]
+APIP_HASH = os.environ["APIP_HASH"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
+TG_SESSION = os.environ["TG_SESSION"]
+
+API_ID = int(API_ID)
+client = TelegramClient(session=TG_SESSION, api_id=API_ID, api_hash=APIP_HASH)
 
 
+async def search_posts(
+        chat_id,
+        hashtag=None,
+        query=None,
+        offset_rate=0,
+        offset_id=0
+):
+    offset_peer = await client.get_input_entity("telegram")
 
-def search_posts(chat_id, hashtag=None, query=None, offset_rate=0, offset_id=0):
-    """
-    搜索占位函数
-    """
-
-    text = (
-        f"hashtag: {hashtag}\n"
-        f"query: {query}\n"
-        f"offset_rate: {offset_rate}\n"
-        f"offset_id: {offset_id}"
+    result = await client(
+        SearchPostsRequest(
+            hashtag=hashtag,
+            query=query,
+            offset_rate=offset_rate,
+            offset_peer=offset_peer,
+            offset_id=offset_id,
+            limit=100
+        )
     )
 
+    chat_map = {
+        chat.id: chat
+        for chat in result.chats
+    }
 
-    next_offset_rate = offset_rate + 100
-    next_offset_id = offset_id + 1
+    text_list = []
 
+    for msg in result.messages:
 
-    callback_data = ",".join([
-        hashtag if hashtag else query,
-        str(next_offset_rate),
-        str(next_offset_id)
-    ])
+        if not hasattr(msg.peer_id, "channel_id"):
+            continue
 
+        channel_id = msg.peer_id.channel_id
+
+        if channel_id in blocked_channels:
+            continue
+
+        chat = chat_map.get(channel_id)
+
+        if not chat:
+            continue
+
+        username = getattr(chat, "username", None)
+
+        if not username:
+            continue
+
+        link = f"https://t.me/{username}/{msg.id}"
+
+        content = msg.message or ""
+
+        text_list.append(
+            f"频道ID:{channel_id}\n\n"
+            f"[{content}]({link})"
+        )
+
+    if not text_list:
+        message_text = "没有符合条件的结果"
+    else:
+        message_text = "\n\n----------------\n\n".join(text_list)
+
+    next_rate = result.next_rate
+
+    callback_data = None
+
+    if next_rate:
+        keyword = hashtag if hashtag else query
+
+        callback_data = ",".join([
+            keyword,
+            str(next_rate),
+            str(0)
+        ])
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-
-    data = json.dumps({
+    body = {
         "chat_id": chat_id,
-        "text": text,
-        "reply_markup": {
+        "text": message_text,
+        "parse_mode": "Markdown"
+    }
+
+    if callback_data:
+        body["reply_markup"] = {
             "inline_keyboard": [
                 [
                     {
@@ -48,8 +108,8 @@ def search_posts(chat_id, hashtag=None, query=None, offset_rate=0, offset_id=0):
                 ]
             ]
         }
-    }).encode()
 
+    data = json.dumps(body).encode()
 
     req = urllib.request.Request(
         url,
@@ -59,38 +119,29 @@ def search_posts(chat_id, hashtag=None, query=None, offset_rate=0, offset_id=0):
         }
     )
 
-
     urllib.request.urlopen(req)
 
-
     return {
-        "offset_rate": next_offset_rate,
-        "offset_id": next_offset_id
+        "offset_rate": next_rate
     }
 
 
-
 def parse_search_text(text):
-
     text = text.replace("\n", "")
     text = text.strip()
 
-
     if text.startswith("#"):
-
         return {
             "keyword": text,
             "hashtag": text[1:],
             "query": None
         }
 
-
     return {
         "keyword": text,
         "hashtag": None,
         "query": text
     }
-
 
 
 class handler(BaseHTTPRequestHandler):
@@ -105,19 +156,14 @@ class handler(BaseHTTPRequestHandler):
 
         update = json.loads(body)
 
-
-
         message = update.get("message")
 
         if message:
-
             chat_id = message["chat"]["id"]
 
             text = message.get("text", "")
 
-
             search = parse_search_text(text)
-
 
             search_posts(
                 chat_id,
@@ -125,22 +171,16 @@ class handler(BaseHTTPRequestHandler):
                 query=search["query"]
             )
 
-
-
         callback_query = update.get("callback_query")
 
         if callback_query:
-
             chat_id = callback_query["message"]["chat"]["id"]
 
             data = callback_query["data"]
 
-
             keyword, offset_rate, offset_id = data.split(",")
 
-
             search = parse_search_text(keyword)
-
 
             search_posts(
                 chat_id,
@@ -149,8 +189,6 @@ class handler(BaseHTTPRequestHandler):
                 offset_rate=int(offset_rate),
                 offset_id=int(offset_id)
             )
-
-
 
         self.send_response(200)
 
