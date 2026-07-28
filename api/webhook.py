@@ -7,38 +7,38 @@ from http.server import BaseHTTPRequestHandler
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 
 
-def search_posts(hashtag=None, query=None, offset_rate=0, offset_id=0):
+
+def search_posts(chat_id, hashtag=None, query=None, offset_rate=0, offset_id=0):
     """
     搜索占位函数
     """
 
-    return {
-        "text": (
-            f"hashtag: {hashtag}\n"
-            f"query: {query}\n"
-            f"offset_rate: {offset_rate}\n"
-            f"offset_id: {offset_id}"
-        ),
-        "offset_rate": offset_rate + 100,
-        "offset_id": offset_id + 1
-    }
+    text = (
+        f"hashtag: {hashtag}\n"
+        f"query: {query}\n"
+        f"offset_rate: {offset_rate}\n"
+        f"offset_id: {offset_id}"
+    )
 
 
+    next_offset_rate = offset_rate + 100
+    next_offset_id = offset_id + 1
 
-def send_message(chat_id, text, callback_data=None):
+
+    callback_data = ",".join([
+        hashtag if hashtag else query,
+        str(next_offset_rate),
+        str(next_offset_id)
+    ])
+
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
 
-    data_body = {
+    data = json.dumps({
         "chat_id": chat_id,
-        "text": text
-    }
-
-
-    if callback_data:
-
-        data_body["reply_markup"] = {
+        "text": text,
+        "reply_markup": {
             "inline_keyboard": [
                 [
                     {
@@ -48,9 +48,7 @@ def send_message(chat_id, text, callback_data=None):
                 ]
             ]
         }
-
-
-    data = json.dumps(data_body).encode()
+    }).encode()
 
 
     req = urllib.request.Request(
@@ -65,13 +63,16 @@ def send_message(chat_id, text, callback_data=None):
     urllib.request.urlopen(req)
 
 
+    return {
+        "offset_rate": next_offset_rate,
+        "offset_id": next_offset_id
+    }
+
+
 
 def parse_search_text(text):
 
-    # 去掉所有换行
     text = text.replace("\n", "")
-
-    # 去掉首尾空格
     text = text.strip()
 
 
@@ -106,8 +107,6 @@ class handler(BaseHTTPRequestHandler):
 
 
 
-        # 用户发送文本
-
         message = update.get("message")
 
         if message:
@@ -120,28 +119,13 @@ class handler(BaseHTTPRequestHandler):
             search = parse_search_text(text)
 
 
-            result = search_posts(
+            search_posts(
+                chat_id,
                 hashtag=search["hashtag"],
                 query=search["query"]
             )
 
 
-            callback_data = ",".join([
-                search["keyword"],
-                str(result["offset_rate"]),
-                str(result["offset_id"])
-            ])
-
-
-            send_message(
-                chat_id,
-                result["text"],
-                callback_data
-            )
-
-
-
-        # 用户点击下一页
 
         callback_query = update.get("callback_query")
 
@@ -158,25 +142,12 @@ class handler(BaseHTTPRequestHandler):
             search = parse_search_text(keyword)
 
 
-            result = search_posts(
+            search_posts(
+                chat_id,
                 hashtag=search["hashtag"],
                 query=search["query"],
                 offset_rate=int(offset_rate),
                 offset_id=int(offset_id)
-            )
-
-
-            callback_data = ",".join([
-                keyword,
-                str(result["offset_rate"]),
-                str(result["offset_id"])
-            ])
-
-
-            send_message(
-                chat_id,
-                result["text"],
-                callback_data
             )
 
 
