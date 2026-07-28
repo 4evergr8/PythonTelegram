@@ -83,7 +83,7 @@ async def search_posts(
             link = f"https://t.me/{username}/{msg.id}"
 
             content = (msg.message or "").replace("\n", "")
-            content = content[:80]
+            content = content[:30]
 
             text_list.append(
                 f"[{content}]({link})"
