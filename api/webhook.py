@@ -7,10 +7,7 @@ from telethon.sessions import StringSession
 from telethon.tl.functions.channels import SearchPostsRequest
 from aaa import blocked_channels
 
-API_ID = int(os.environ["API_ID"])
-API_HASH = os.environ["API_HASH"]
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-TG_SESSION = os.environ["TG_SESSION"]
+
 
 async def search_posts(
         chat_id,
@@ -19,6 +16,10 @@ async def search_posts(
         offset_rate=0,
         offset_id=0
 ):
+    API_ID = int(os.environ["API_ID"])
+    API_HASH = os.environ["API_HASH"]
+    BOT_TOKEN = os.environ["BOT_TOKEN"]
+    TG_SESSION = os.environ["TG_SESSION"]
     try:
         client = TelegramClient(StringSession(TG_SESSION), api_id=API_ID, api_hash=API_HASH)
         offset_peer = await client.get_input_entity("telegram")
