@@ -11,10 +11,7 @@ API_HASH = os.environ["API_HASH"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
 
-API_ID = int(API_ID)
 client = TelegramClient(session=TG_SESSION, api_id=API_ID, api_hash=API_HASH)
-
-
 async def search_posts(
         chat_id,
         hashtag=None,
