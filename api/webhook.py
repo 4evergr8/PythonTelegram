@@ -1,5 +1,4 @@
 import asyncio
-import html
 import json
 import os
 import urllib.request
@@ -38,7 +37,7 @@ async def search_posts(
                 offset_rate=offset_rate,
                 offset_peer=offset_peer,
                 offset_id=offset_id,
-                limit=5
+                limit=10
             )
         )
 
@@ -73,11 +72,9 @@ async def search_posts(
 
             content = msg.message or ""
 
-            content = html.escape(content)
-
             text_list.append(
                 f"频道ID:{channel_id}\n\n"
-                f'<a href="{link}">{content}</a>'
+                f"[{content}]({link})"
             )
 
         if not text_list:
@@ -103,7 +100,7 @@ async def search_posts(
         body = {
             "chat_id": chat_id,
             "text": message_text,
-            "parse_mode": "HTML"
+            "parse_mode": "Markdown"
         }
 
         if callback_data:
