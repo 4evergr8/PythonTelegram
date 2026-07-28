@@ -20,7 +20,7 @@ async def search_posts(
         offset_id=0
 ):
     try:
-       print("xxx")
+       raise("xxx")
 
     except Exception as e:
         error_text = f"搜索出错:\n\n{str(e)}"
