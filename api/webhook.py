@@ -9,9 +9,55 @@ from telebot import types as bot_types
 
 from telethon import TelegramClient, functions
 from telethon.sessions import StringSession
-from telethon.tl import types as tg_types
+from telethon.tl import types
 
 
+
+def get_media_emoji(msg):
+
+    emojis = []
+
+    if not msg.media:
+        return ""
+
+
+    if isinstance(
+        msg.media,
+            types.MessageMediaPhoto
+    ):
+        emojis.append("🖼️")
+
+
+    if isinstance(
+        msg.media,
+        types.MessageMediaDocument
+    ):
+
+        document = msg.media.document
+
+
+        for attr in document.attributes:
+
+            if isinstance(
+                attr,
+                types.DocumentAttributeVideo
+            ):
+                emojis.append("🎬")
+
+
+            if isinstance(
+                attr,
+                types.DocumentAttributeAudio
+            ):
+                emojis.append("🎵")
+
+
+        # 没有视频和音乐属性的 Document
+        if not emojis:
+            emojis.append("📁")
+
+
+    return "".join(emojis)
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
@@ -43,11 +89,11 @@ async def search_posts(
             functions.messages.SearchGlobalRequest(
                 q=query,
                 broadcasts_only=True,
-                filter=tg_types.InputMessagesFilterEmpty(),
+                filter=types.InputMessagesFilterEmpty(),
                 min_date=None,
                 max_date=None,
                 offset_rate=offset_rate,
-                offset_peer=tg_types.InputPeerEmpty(),
+                offset_peer=types.InputPeerEmpty(),
                 offset_id=offset_id,
                 limit=100
             )
@@ -134,9 +180,16 @@ async def search_posts(
 
                 content = content[:20]
 
+                emoji = get_media_emoji(msg)
+
+                prefix = (
+                    emoji + " "
+                    if emoji
+                    else ""
+                )
 
                 text_list.append(
-                    f"[{content}]({link})"
+                    f"{prefix}[{content}]({link})"
                 )
 
 
