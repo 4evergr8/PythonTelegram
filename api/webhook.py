@@ -12,7 +12,6 @@ from telethon.sessions import StringSession
 from telethon.tl import types
 
 
-
 def get_media_emoji(msg):
 
     emojis = []
@@ -20,13 +19,11 @@ def get_media_emoji(msg):
     if not msg.media:
         return ""
 
-
     if isinstance(
         msg.media,
-            types.MessageMediaPhoto
+        types.MessageMediaPhoto
     ):
         emojis.append("🖼️")
-
 
     if isinstance(
         msg.media,
@@ -34,7 +31,6 @@ def get_media_emoji(msg):
     ):
 
         document = msg.media.document
-
 
         for attr in document.attributes:
 
@@ -44,7 +40,6 @@ def get_media_emoji(msg):
             ):
                 emojis.append("🎬")
 
-
             if isinstance(
                 attr,
                 types.DocumentAttributeAudio
@@ -52,18 +47,100 @@ def get_media_emoji(msg):
                 emojis.append("🎵")
 
 
-        # 没有视频和音乐属性的 Document
         if not emojis:
             emojis.append("📁")
 
 
     return "".join(emojis)
 
+
+
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
+
+
 bot = telebot.TeleBot(BOT_TOKEN)
+
+
+
+def get_search_filter(file_type):
+
+    if file_type == "image":
+        return types.InputMessagesFilterPhotos()
+
+    if file_type == "video":
+        return types.InputMessagesFilterVideo()
+
+    if file_type == "music":
+        return types.InputMessagesFilterMusic()
+
+    if file_type == "file":
+        return types.InputMessagesFilterDocument()
+
+    return types.InputMessagesFilterEmpty()
+
+
+
+def create_keyboard(
+        query,
+        file_type,
+        next_rate=None,
+        next_id=0
+):
+
+    keyboard = bot_types.InlineKeyboardMarkup()
+
+
+    keyboard.row(
+        bot_types.InlineKeyboardButton(
+            text="🖼图片",
+            callback_data=f"{query},image,0,0"
+        ),
+        bot_types.InlineKeyboardButton(
+            text="🎬视频",
+            callback_data=f"{query},video,0,0"
+        )
+    )
+
+
+    keyboard.row(
+        bot_types.InlineKeyboardButton(
+            text="🎵音乐",
+            callback_data=f"{query},music,0,0"
+        ),
+        bot_types.InlineKeyboardButton(
+            text="📁文件",
+            callback_data=f"{query},file,0,0"
+        )
+    )
+
+
+    keyboard.row(
+        bot_types.InlineKeyboardButton(
+            text="全部",
+            callback_data=f"{query},all,0,0"
+        )
+    )
+
+
+    if next_rate:
+
+        keyboard.row(
+            bot_types.InlineKeyboardButton(
+                text="下一页",
+                callback_data=(
+                    f"{query},"
+                    f"{file_type},"
+                    f"{next_rate},"
+                    f"{next_id}"
+                )
+            )
+        )
+
+
+    return keyboard
 
 
 
@@ -71,10 +148,12 @@ bot = telebot.TeleBot(BOT_TOKEN)
 async def search_posts(
         chat_id,
         query,
+        file_type="all",
         offset_rate=0,
         offset_id=0,
         callback_query_id=None
 ):
+
     try:
 
         client = TelegramClient(
@@ -83,13 +162,15 @@ async def search_posts(
             API_HASH
         )
 
+
         await client.connect()
+
 
         result = await client(
             functions.messages.SearchGlobalRequest(
                 q=query,
-                broadcasts_only=True,
-                filter=types.InputMessagesFilterEmpty(),
+                broadcasts_only=types.InputBroadcastOnly(True),
+                filter=get_search_filter(file_type),
                 min_date=None,
                 max_date=None,
                 offset_rate=offset_rate,
@@ -100,6 +181,7 @@ async def search_posts(
         )
 
 
+
         if not result.messages:
 
             text = "没有符合条件的结果"
@@ -107,17 +189,21 @@ async def search_posts(
             next_rate = None
             next_id = 0
 
+
         else:
+
 
             chat_map = {
                 chat.id: chat
                 for chat in result.chats
             }
 
+
             text_list = []
 
 
             for msg in result.messages:
+
 
                 if not hasattr(
                     msg.peer_id,
@@ -126,10 +212,8 @@ async def search_posts(
                     continue
 
 
-                channel_id = msg.peer_id.channel_id
-
                 chat = chat_map.get(
-                    channel_id
+                    msg.peer_id.channel_id
                 )
 
 
@@ -180,7 +264,9 @@ async def search_posts(
 
                 content = content[:20]
 
+
                 emoji = get_media_emoji(msg)
+
 
                 prefix = (
                     emoji + " "
@@ -188,9 +274,11 @@ async def search_posts(
                     else ""
                 )
 
+
                 text_list.append(
                     f"{prefix}[{content}]({link})"
                 )
+
 
 
             if text_list:
@@ -204,7 +292,7 @@ async def search_posts(
                 text = "没有符合条件的结果"
 
 
-            # 只有 MessagesSlice 才有 next_rate
+
             next_rate = getattr(
                 result,
                 "next_rate",
@@ -215,29 +303,12 @@ async def search_posts(
 
 
 
-        keyboard = None
-
-
-        if next_rate:
-
-            callback_data = ",".join(
-                [
-                    query,
-                    str(next_rate),
-                    str(next_id)
-                ]
-            )
-
-
-            keyboard = bot_types.InlineKeyboardMarkup()
-
-
-            keyboard.add(
-                bot_types.InlineKeyboardButton(
-                    text="下一页",
-                    callback_data=callback_data
-                )
-            )
+        keyboard = create_keyboard(
+            query,
+            file_type,
+            next_rate,
+            next_id
+        )
 
 
         if callback_query_id:
@@ -259,6 +330,7 @@ async def search_posts(
         client.disconnect()
 
 
+
     except Exception as e:
 
         print(e)
@@ -268,8 +340,14 @@ async def search_posts(
             f"搜索出错:\n\n{str(e)}"
         )
 
+
+
+
 def parse_search_text(text):
+
     return text.strip()
+
+
 
 
 class handler(BaseHTTPRequestHandler):
@@ -283,13 +361,25 @@ class handler(BaseHTTPRequestHandler):
             )
         )
 
-        body = self.rfile.read(length)
 
-        update = json.loads(body)
+        body = self.rfile.read(
+            length
+        )
 
-        message = update.get("message")
+
+        update = json.loads(
+            body
+        )
+
+
+
+        message = update.get(
+            "message"
+        )
+
 
         if message:
+
             chat_id = message["chat"]["id"]
 
             text = message.get(
@@ -297,9 +387,11 @@ class handler(BaseHTTPRequestHandler):
                 ""
             )
 
+
             query = parse_search_text(
                 text
             )
+
 
             asyncio.run(
                 search_posts(
@@ -308,27 +400,38 @@ class handler(BaseHTTPRequestHandler):
                 )
             )
 
+
+
         callback_query = update.get(
             "callback_query"
         )
 
+
         if callback_query:
+
 
             chat_id = callback_query["message"]["chat"]["id"]
 
+
             data = callback_query["data"]
 
-            query, offset_rate, offset_id = data.split(",")
+
+            query, file_type, offset_rate, offset_id = data.split(",")
+
+
 
             asyncio.run(
                 search_posts(
                     chat_id,
                     query,
+                    file_type=file_type,
                     offset_rate=int(offset_rate),
                     offset_id=int(offset_id),
                     callback_query_id=callback_query["id"]
                 )
             )
+
+
 
         self.send_response(200)
 
