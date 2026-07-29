@@ -169,7 +169,7 @@ async def search_posts(
         result = await client(
             functions.messages.SearchGlobalRequest(
                 q=query,
-                broadcasts_only=types.InputBroadcastOnly(True),
+                broadcasts_only=True,
                 filter=get_search_filter(file_type),
                 min_date=None,
                 max_date=None,
