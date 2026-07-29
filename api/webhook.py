@@ -18,7 +18,7 @@ API_HASH = os.environ["API_HASH"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
 
-bot = telebot.TeleBot(BOT_TOKEN)
+
 
 
 async def search_posts(
@@ -28,6 +28,7 @@ async def search_posts(
         offset_id=0,
         callback_query_id=None
 ):
+    bot = telebot.TeleBot(BOT_TOKEN)
     try:
         client = TelegramClient(
             StringSession(TG_SESSION),
@@ -137,6 +138,7 @@ async def search_posts(
                     callback_data=callback_data
                 )
             )
+
 
         if callback_query_id:
             bot.answer_callback_query(
