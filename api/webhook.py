@@ -152,6 +152,7 @@ async def search_posts(
         )
 
         client.disconnect()
+        raise 'fdcsfsgsgbs'
 
     except Exception as e:
         bot.send_message(
