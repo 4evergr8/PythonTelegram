@@ -30,6 +30,7 @@ async def search_posts(
 ):
     bot = telebot.TeleBot(BOT_TOKEN)
     try:
+        raise 'fdcsfsgsgbs'
         client = TelegramClient(
             StringSession(TG_SESSION),
             API_ID,
@@ -154,7 +155,7 @@ async def search_posts(
         )
 
         client.disconnect()
-        raise 'fdcsfsgsgbs'
+
 
 
     except Exception as e:
