@@ -17,6 +17,7 @@ API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
+bot = telebot.TeleBot(BOT_TOKEN)
 
 
 
@@ -28,9 +29,8 @@ async def search_posts(
         offset_id=0,
         callback_query_id=None
 ):
-    bot = telebot.TeleBot(BOT_TOKEN)
     try:
-        
+
         client = TelegramClient(
             StringSession(TG_SESSION),
             API_ID,
@@ -42,7 +42,7 @@ async def search_posts(
         result = await client(
             functions.messages.SearchGlobalRequest(
                 q=query,
-                broadcasts_only=True,
+                broadcasts_only=tg_types.InputBroadcastOnly(True),
                 filter=tg_types.InputMessagesFilterEmpty(),
                 min_date=None,
                 max_date=None,
@@ -53,12 +53,16 @@ async def search_posts(
             )
         )
 
+
         if not result.messages:
+
             text = "没有符合条件的结果"
+
             next_rate = None
             next_id = 0
 
         else:
+
             chat_map = {
                 chat.id: chat
                 for chat in result.chats
@@ -66,17 +70,26 @@ async def search_posts(
 
             text_list = []
 
+
             for msg in result.messages:
 
-                if not hasattr(msg.peer_id, "channel_id"):
+                if not hasattr(
+                    msg.peer_id,
+                    "channel_id"
+                ):
                     continue
+
 
                 channel_id = msg.peer_id.channel_id
 
-                chat = chat_map.get(channel_id)
+                chat = chat_map.get(
+                    channel_id
+                )
+
 
                 if not chat:
                     continue
+
 
                 username = getattr(
                     chat,
@@ -84,10 +97,17 @@ async def search_posts(
                     None
                 )
 
+
                 if not username:
                     continue
 
-                link = f"https://t.me/{username}/{msg.id}"
+
+                link = (
+                    f"https://t.me/"
+                    f"{username}/"
+                    f"{msg.id}"
+                )
+
 
                 content = (
                     msg.message or ""
@@ -99,30 +119,54 @@ async def search_posts(
                     ""
                 )
 
+
                 pattern = re.compile(
                     r"[^\w\u4e00-\u9fff]{4,}"
                 )
 
-                if re.search(pattern, content):
+
+                if re.search(
+                    pattern,
+                    content
+                ):
                     continue
 
+
                 content = content[:20]
+
 
                 text_list.append(
                     f"[{content}]({link})"
                 )
 
+
             if text_list:
-                text = "\n".join(text_list)
+
+                text = "\n".join(
+                    text_list
+                )
+
             else:
+
                 text = "没有符合条件的结果"
 
-            next_rate = result.next_rate
+
+            # 只有 MessagesSlice 才有 next_rate
+            next_rate = getattr(
+                result,
+                "next_rate",
+                None
+            )
+
             next_id = 0
+
+
 
         keyboard = None
 
+
         if next_rate:
+
             callback_data = ",".join(
                 [
                     query,
@@ -131,7 +175,9 @@ async def search_posts(
                 ]
             )
 
+
             keyboard = bot_types.InlineKeyboardMarkup()
+
 
             keyboard.add(
                 bot_types.InlineKeyboardButton(
@@ -142,9 +188,11 @@ async def search_posts(
 
 
         if callback_query_id:
+
             bot.answer_callback_query(
                 callback_query_id
             )
+
 
         bot.send_message(
             chat_id,
@@ -154,8 +202,8 @@ async def search_posts(
             disable_web_page_preview=True
         )
 
-        client.disconnect()
 
+        client.disconnect()
 
 
     except Exception as e:
@@ -163,13 +211,9 @@ async def search_posts(
         print(e)
 
         bot.send_message(
-
             chat_id,
-
             f"搜索出错:\n\n{str(e)}"
-
         )
-
 
 def parse_search_text(text):
     return text.strip()
