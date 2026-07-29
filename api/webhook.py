@@ -13,21 +13,20 @@ from telethon.tl import types
 
 
 def get_media_emoji(msg):
-
     emojis = []
 
     if not msg.media:
         return ""
 
     if isinstance(
-        msg.media,
-        types.MessageMediaPhoto
+            msg.media,
+            types.MessageMediaPhoto
     ):
         emojis.append("🖼️")
 
     if isinstance(
-        msg.media,
-        types.MessageMediaDocument
+            msg.media,
+            types.MessageMediaDocument
     ):
 
         document = msg.media.document
@@ -35,24 +34,21 @@ def get_media_emoji(msg):
         for attr in document.attributes:
 
             if isinstance(
-                attr,
-                types.DocumentAttributeVideo
+                    attr,
+                    types.DocumentAttributeVideo
             ):
                 emojis.append("🎬")
 
             if isinstance(
-                attr,
-                types.DocumentAttributeAudio
+                    attr,
+                    types.DocumentAttributeAudio
             ):
                 emojis.append("🎵")
-
 
         if not emojis:
             emojis.append("📁")
 
-
     return "".join(emojis)
-
 
 
 API_ID = int(os.environ["API_ID"])
@@ -60,13 +56,10 @@ API_HASH = os.environ["API_HASH"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 TG_SESSION = os.environ["TG_SESSION"]
 
-
 bot = telebot.TeleBot(BOT_TOKEN)
 
 
-
 def get_search_filter(file_type):
-
     if file_type == "image":
         return types.InputMessagesFilterPhotos()
 
@@ -82,54 +75,42 @@ def get_search_filter(file_type):
     return types.InputMessagesFilterEmpty()
 
 
-
 def create_keyboard(
         query,
         file_type,
         next_rate=None,
         next_id=0
 ):
-
     keyboard = bot_types.InlineKeyboardMarkup()
 
-
     keyboard.row(
+    bot_types.InlineKeyboardButton(
+            text="♾️",
+            callback_data=f"{query},all,0,0"
+        ),
         bot_types.InlineKeyboardButton(
-            text="🖼图片",
+            text="🖼",
             callback_data=f"{query},image,0,0"
         ),
         bot_types.InlineKeyboardButton(
-            text="🎬视频",
+            text="🎬",
             callback_data=f"{query},video,0,0"
-        )
-    )
-
-
-    keyboard.row(
+        ),
         bot_types.InlineKeyboardButton(
-            text="🎵音乐",
+            text="🎵",
             callback_data=f"{query},music,0,0"
         ),
         bot_types.InlineKeyboardButton(
-            text="📁文件",
+            text="📁",
             callback_data=f"{query},file,0,0"
-        )
+        ),
+
     )
-
-
-    keyboard.row(
-        bot_types.InlineKeyboardButton(
-            text="全部",
-            callback_data=f"{query},all,0,0"
-        )
-    )
-
 
     if next_rate:
-
         keyboard.row(
             bot_types.InlineKeyboardButton(
-                text="下一页",
+                text="➡️",
                 callback_data=(
                     f"{query},"
                     f"{file_type},"
@@ -139,10 +120,7 @@ def create_keyboard(
             )
         )
 
-
     return keyboard
-
-
 
 
 async def search_posts(
@@ -153,7 +131,6 @@ async def search_posts(
         offset_id=0,
         callback_query_id=None
 ):
-
     try:
 
         client = TelegramClient(
@@ -162,9 +139,7 @@ async def search_posts(
             API_HASH
         )
 
-
         await client.connect()
-
 
         result = await client(
             functions.messages.SearchGlobalRequest(
@@ -180,8 +155,6 @@ async def search_posts(
             )
         )
 
-
-
         if not result.messages:
 
             text = "没有符合条件的结果"
@@ -192,34 +165,27 @@ async def search_posts(
 
         else:
 
-
             chat_map = {
                 chat.id: chat
                 for chat in result.chats
             }
 
-
             text_list = []
-
 
             for msg in result.messages:
 
-
                 if not hasattr(
-                    msg.peer_id,
-                    "channel_id"
+                        msg.peer_id,
+                        "channel_id"
                 ):
                     continue
-
 
                 chat = chat_map.get(
                     msg.peer_id.channel_id
                 )
 
-
                 if not chat:
                     continue
-
 
                 username = getattr(
                     chat,
@@ -227,10 +193,8 @@ async def search_posts(
                     None
                 )
 
-
                 if not username:
                     continue
-
 
                 link = (
                     f"https://t.me/"
@@ -238,9 +202,8 @@ async def search_posts(
                     f"{msg.id}"
                 )
 
-
                 content = (
-                    msg.message or ""
+                        msg.message or ""
                 ).replace(
                     "\n",
                     ""
@@ -249,24 +212,19 @@ async def search_posts(
                     ""
                 )
 
-
                 pattern = re.compile(
                     r"[^\w\u4e00-\u9fff]{4,}"
                 )
 
-
                 if re.search(
-                    pattern,
-                    content
+                        pattern,
+                        content
                 ):
                     continue
 
-
                 content = content[:20]
 
-
                 emoji = get_media_emoji(msg)
-
 
                 prefix = (
                     emoji + " "
@@ -274,12 +232,9 @@ async def search_posts(
                     else ""
                 )
 
-
                 text_list.append(
                     f"{prefix}[{content}]({link})"
                 )
-
-
 
             if text_list:
 
@@ -291,8 +246,6 @@ async def search_posts(
 
                 text = "没有符合条件的结果"
 
-
-
             next_rate = getattr(
                 result,
                 "next_rate",
@@ -301,8 +254,6 @@ async def search_posts(
 
             next_id = 0
 
-
-
         keyboard = create_keyboard(
             query,
             file_type,
@@ -310,13 +261,10 @@ async def search_posts(
             next_id
         )
 
-
         if callback_query_id:
-
             bot.answer_callback_query(
                 callback_query_id
             )
-
 
         bot.send_message(
             chat_id,
@@ -325,7 +273,6 @@ async def search_posts(
             reply_markup=keyboard,
             disable_web_page_preview=True
         )
-
 
         client.disconnect()
 
@@ -341,13 +288,8 @@ async def search_posts(
         )
 
 
-
-
 def parse_search_text(text):
-
     return text.strip()
-
-
 
 
 class handler(BaseHTTPRequestHandler):
@@ -361,25 +303,19 @@ class handler(BaseHTTPRequestHandler):
             )
         )
 
-
         body = self.rfile.read(
             length
         )
-
 
         update = json.loads(
             body
         )
 
-
-
         message = update.get(
             "message"
         )
 
-
         if message:
-
             chat_id = message["chat"]["id"]
 
             text = message.get(
@@ -387,11 +323,9 @@ class handler(BaseHTTPRequestHandler):
                 ""
             )
 
-
             query = parse_search_text(
                 text
             )
-
 
             asyncio.run(
                 search_posts(
@@ -400,25 +334,16 @@ class handler(BaseHTTPRequestHandler):
                 )
             )
 
-
-
         callback_query = update.get(
             "callback_query"
         )
 
-
         if callback_query:
-
-
             chat_id = callback_query["message"]["chat"]["id"]
-
 
             data = callback_query["data"]
 
-
             query, file_type, offset_rate, offset_id = data.split(",")
-
-
 
             asyncio.run(
                 search_posts(
@@ -430,8 +355,6 @@ class handler(BaseHTTPRequestHandler):
                     callback_query_id=callback_query["id"]
                 )
             )
-
-
 
         self.send_response(200)
 
