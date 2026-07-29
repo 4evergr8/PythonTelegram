@@ -30,7 +30,7 @@ async def search_posts(
 ):
     bot = telebot.TeleBot(BOT_TOKEN)
     try:
-        raise 'fdcsfsgsgbs'
+        
         client = TelegramClient(
             StringSession(TG_SESSION),
             API_ID,
