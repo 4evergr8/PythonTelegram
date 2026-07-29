@@ -156,10 +156,17 @@ async def search_posts(
         client.disconnect()
         raise 'fdcsfsgsgbs'
 
+
     except Exception as e:
+
+        print(e)
+
         bot.send_message(
+
             chat_id,
+
             f"搜索出错:\n\n{str(e)}"
+
         )
 
 
